@@ -1,0 +1,42 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Jupyter notebooks and IDEs
+.ipynb_checkpoints/
+.vscode/
+.idea/
+
+# Generated simulation data and plots
+*.png
+*.pdf
+*.svg
+*.dat
+*.csv
+*.npy
+*.npz
+*.h5
+*.log
