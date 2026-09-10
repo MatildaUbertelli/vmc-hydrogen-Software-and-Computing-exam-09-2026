@@ -1,0 +1,15 @@
+"""Variational Monte Carlo (VMC) package for the hydrogen atom ground state."""
+
+from vmc_hydrogen.__version__ import (
+    __author__,
+    __author_email__,
+    __version__,
+)
+from vmc_hydrogen.wavefunctions import Hydrogen1sWaveFunction
+
+__all__ = [
+    "__version__",
+    "__author__",
+    "__author_email__",
+    "Hydrogen1sWaveFunction",
+]
