@@ -6,6 +6,7 @@ from vmc_hydrogen.__version__ import (
     __version__,
 )
 from vmc_hydrogen.hamiltonian import local_energy
+from vmc_hydrogen.sampler import MultiWalkerMetropolis
 from vmc_hydrogen.wavefunctions import Hydrogen1sWaveFunction
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "__author_email__",
     "Hydrogen1sWaveFunction",
     "local_energy",
+    "MultiWalkerMetropolis",
 ]
