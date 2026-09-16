@@ -8,6 +8,11 @@ from vmc_hydrogen.__version__ import (
 from vmc_hydrogen.analysis import blocking_analysis, estimate_energy
 from vmc_hydrogen.hamiltonian import local_energy
 from vmc_hydrogen.optimizer import VariationalOptimizer
+from vmc_hydrogen.plots import (
+    plot_blocking,
+    plot_optimization,
+    plot_radial_distribution,
+)
 from vmc_hydrogen.sampler import MultiWalkerMetropolis
 from vmc_hydrogen.wavefunctions import Hydrogen1sWaveFunction
 
@@ -21,4 +26,7 @@ __all__ = [
     "VariationalOptimizer",
     "blocking_analysis",
     "estimate_energy",
+    "plot_radial_distribution",
+    "plot_blocking",
+    "plot_optimization",
 ]
