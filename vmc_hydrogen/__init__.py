@@ -5,6 +5,7 @@ from vmc_hydrogen.__version__ import (
     __author_email__,
     __version__,
 )
+from vmc_hydrogen.analysis import blocking_analysis, estimate_energy
 from vmc_hydrogen.hamiltonian import local_energy
 from vmc_hydrogen.optimizer import VariationalOptimizer
 from vmc_hydrogen.sampler import MultiWalkerMetropolis
@@ -18,4 +19,6 @@ __all__ = [
     "local_energy",
     "MultiWalkerMetropolis",
     "VariationalOptimizer",
+    "blocking_analysis",
+    "estimate_energy",
 ]
