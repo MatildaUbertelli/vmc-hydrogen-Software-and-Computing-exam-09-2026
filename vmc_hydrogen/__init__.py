@@ -1,5 +1,6 @@
 """Variational Monte Carlo (VMC) package for the hydrogen atom ground state."""
 
+from vmc_hydrogen.__main__ import main
 from vmc_hydrogen.__version__ import (
     __author__,
     __author_email__,
@@ -29,4 +30,5 @@ __all__ = [
     "plot_radial_distribution",
     "plot_blocking",
     "plot_optimization",
+    "main",
 ]
