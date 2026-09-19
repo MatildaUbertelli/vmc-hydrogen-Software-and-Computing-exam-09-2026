@@ -151,20 +151,32 @@ The repository includes a comprehensive unit testing suite managed through `pyte
 ### Executing Tests via Pytest
 
 To execute all test modules with verbose reporting, run from the root directory:
+
 ```bash
-pytest -v```
+pytest -v
+
+```
 
 To run a single test module:
+
 ```bash
-pytest tests/test_hamiltonian.py -v```
+pytest tests/test_hamiltonian.py -v
+
+```
 
 To generate a test coverage report directly in the terminal:
+
 ```bash
-pytest --cov=vmc_hydrogen -v```
+pytest --cov=vmc_hydrogen -v
+
+```
 
 To export an interactive HTML coverage report to the `htmlcov/` directory:
+
 ```bash
-pytest --cov=vmc_hydrogen --cov-report=html```
+pytest --cov=vmc_hydrogen --cov-report=html
+
+```
 
 ---
 
