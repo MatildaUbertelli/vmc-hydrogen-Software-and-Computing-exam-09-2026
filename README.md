@@ -34,11 +34,11 @@ $$\hat{H} = -\frac{1}{2}\nabla^2 - \frac{1}{r}$$
 where $r$ is the electron-nucleus radial distance. The exact analytical solution for the 1s ground state is $\psi_0(r) = e^{-r}$ with ground-state energy $E_0 = -0.5\text{ Ha}$.
 
 ### Variational Principle
-According to the Rayleigh-Ritz variational principle, for any normalizable trial wave function $\psi_\alpha(r)$ parameterized by $\alpha > 0$, the energy expectation value provides a rigorous upper bound to the ground-state eigenvalue $E_0$[cite: 1]:
+According to the Rayleigh-Ritz variational principle, for any normalizable trial wave function $\psi_\alpha(r)$ parameterized by $\alpha > 0$, the energy expectation value provides a rigorous upper bound to the ground-state eigenvalue $E_0$:
 
 $$\langle E(\alpha) \rangle = \frac{\langle \psi_\alpha | \hat{H} | \psi_\alpha \rangle}{\langle \psi_\alpha | \psi_\alpha \rangle} \ge E_0$$
 
-The equality holds if and only if $\psi_\alpha(r)$ matches the exact ground state $\psi_0(r)$[cite: 1].
+The equality holds if and only if $\psi_\alpha(r)$ matches the exact ground state $\psi_0(r)$.
 
 ### Trial Wave Function and Local Energy
 We consider a spherically symmetric exponential trial wave function:
@@ -55,22 +55,21 @@ $$E_L(\alpha, r) = -\frac{\alpha^2}{2} + \frac{\alpha - 1}{r}$$
 
 When $\alpha = 1.0$, the Coulomb singularity term vanishes identically for any $r > 0$, collapsing the local energy to a constant value of $E_L \equiv -0.5\text{ Ha}$ with zero variance. This zero-variance condition serves as the analytical oracle for testing the implementation.
 
-### Multi-Walker Metropolis-Hastings Sampling
+### Multi-Walker Metropolis-Hastings Radial Sampling
 
-To evaluate the quantum-mechanical expectation values without computing high-dimensional analytical integrals, configurations are sampled from the probability density:
+Exploiting the spherical symmetry of the $1s$ orbital, the three-dimensional volume element integrates analytically over the solid angle ($d^3\mathbf{r} = 4\pi r^2 dr$). The electron configuration is therefore directly sampled along the scalar radial coordinate $r \in (0, \infty)$ from the radial probability density:
 
-$$\rho(\mathbf{r}) = \frac{|\psi_T(\alpha, \mathbf{r})|^2}{\int |\psi_T(\alpha, \mathbf{r}')|^2 d^3\mathbf{r}'}$$
+$$P(r) = 4\alpha^3 r^2 e^{-2\alpha r}$$
 
-Rather than propagating a single sequential Markov chain, the simulation employs an **ensemble of $N_w$ parallel walkers** in 3D Cartesian space, initialized uniformly within a bounding volume.
+The simulation propagates an **ensemble of $N_w$ parallel walkers** along the radial coordinate $r_i$ ($i = 1, \dots, N_w$), initialized uniformly in the interval $[0.5, 2.0]\,a_0$.
 
 At each Monte Carlo iteration:
-1. **Trial Displacement:** Every walker position $\mathbf{r}_i$ ($i = 1, \dots, N_w$) is updated by proposing a random displacement drawn uniformly from $[-\delta, \delta]^3$:
-   $$\mathbf{r}'_i = \mathbf{r}_i + \Delta \mathbf{r}_i$$
-2. **Metropolis Acceptance Ratio:** The transition probability is governed by the squared amplitude ratio:
-   $$A(\mathbf{r}_i \to \mathbf{r}'_i) = \min\left(1, \frac{|\psi_T(\alpha, \mathbf{r}'_i)|^2}{|\psi_T(\alpha, \mathbf{r}_i)|^2}\right) = \min\left(1, e^{-2\alpha (\|\mathbf{r}'_i\| - \|\mathbf{r}_i\|)}\right)$$
-3. **Parallel Acceptance:** A uniform random variable $u_i \sim \mathcal{U}(0, 1)$ is evaluated simultaneously across all walkers. The step is accepted if $u_i < A$, and rejected otherwise.
-
-The step size $\delta$ is adaptively scaled ($\delta \approx 0.5 / \alpha$) to maintain an acceptance rate within the optimal $40\%\text{--}60\%$ range, ensuring efficient exploration and rapid thermalization.
+1. **Gaussian Trial Displacement:** Every walker proposes a new radial coordinate:
+   $$r'_i = r_i + \Delta r_i, \quad \Delta r_i \sim \mathcal{N}(0, \delta^2)$$
+   where $\delta$ is the displacement standard deviation (`step_size`). Any proposed step with $r'_i \le 0$ is strictly unphysical and assigned $P(r'_i) = 0$.
+2. **Radial Metropolis Acceptance Ratio:** The acceptance probability includes both the radial wave function squared and the spherical volume factor $(r')^2$:
+   $$A(r_i \to r'_i) = \min\left(1, \frac{P(r'_i)}{P(r_i)}\right) = \min\left(1, \left(\frac{r'_i}{r_i}\right)^2 e^{-2\alpha(r'_i - r_i)}\right)$$
+3. **Vectorized Decision:** A uniform random variable $u_i \sim \mathcal{U}(0, 1)$ is drawn simultaneously for all walkers. The proposed state is accepted if $u_i < A(r_i \to r'_i)$ and retained otherwise.
 
 ### Stochastic Gradient and Damped Steepest Descent
 To optimize the variational parameter $\alpha$, we compute the gradient of the energy expectation value $\langle E(\alpha) \rangle$ with respect to $\alpha$:
@@ -107,7 +106,7 @@ The package follows a strictly modular layout complying with academic software s
 
 * **`vmc_hydrogen.wavefunctions`**: Implements the trial wave function $\psi_T(\alpha, r)$ and logarithmic derivatives.
 * **`vmc_hydrogen.hamiltonian`**: Computes the analytical local energy $E_L(\alpha, r)$.
-* **`vmc_hydrogen.sampler`**: Ensemble multi-walker Metropolis-Hastings sampling in 3D Cartesian coordinates.
+* **`vmc_hydrogen.sampler`**: Ensemble multi-walker Metropolis-Hastings sampling along the 1D radial coordinate.
 * **`vmc_hydrogen.optimizer`**: Stochastic gradient descent engine tracking convergence histories of $\alpha$ and $\langle E_L \rangle$.
 * **`vmc_hydrogen.analysis`**: Implements Flyvbjerg-Petersen block averaging (data blocking) and statistical error estimation to correct for finite autocorrelation times in Markov chains.
 * **`vmc_hydrogen.plots`**: Visual diagnostic tools for radial electron probability distributions and parameter trajectories.
@@ -130,10 +129,10 @@ pip install -e .
 
 ## Command-Line Usage
 
-The solver provides a fully configurable Command-Line Interface (CLI) implemented via Python's standard `argparse` module. You can execute runs directly from the terminal without modifying the source files:
+The package provides an integrated Command-Line Interface (CLI) based on Python's standard `argparse` module to run parameter optimization, production sampling, and automated diagnostic plot generation:
 
 ```bash
-python -m vmc_hydrogen --alpha-init 0.5 --walkers 500 --iterations 30 --lr 0.15 --production-steps 100 --outdir results/
+python -m vmc_hydrogen --alpha-init 0.5 --walkers 500 --iterations 30 --lr 0.15 --seed 42 --outdir results
 ```
 
 ### CLI Parameters and Flags
@@ -142,50 +141,52 @@ The application accepts the following command-line flags and parameters via stan
 
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--alpha-init` | `float` | `0.5` | Initial guess for the variational parameter $\alpha$. Must be positive. |
-| `--walkers` | `int` | `500` | Number of simultaneous walkers propagating in 3D Cartesian space. |
-| `--iterations` | `int` | `30` | Number of stochastic gradient descent steps during optimization. |
-| `--lr` | `float` | `0.15` | Learning rate ($\eta$) used for the damped steepest descent updates. |
-| `--production-steps` | `int` | `100` | Number of MCMC steps performed at the optimal parameter $\alpha^*$. |
-| `--step-size` | `float` | `0.5` | Box half-width ($\delta$) for uniform trial displacement proposals. |
-| `--seed` | `int` | `None` | Random seed for NumPy RNG reproducibility. Set to an integer for deterministic runs. |
-| `--outdir` | `str` | `results/` | Output directory where diagnostic `.png` figures are saved. |
+| `--alpha-init` | `float` | `0.5` | Initial guess for the variational parameter $\alpha$. Must be strictly positive. |
+| `--lr` | `float` | `0.15` | Learning rate ($\eta$) used for damped steepest descent parameter updates. |
+| `--iterations` | `int` | `30` | Number of stochastic gradient descent steps during parameter optimization. |
+| `--walkers` | `int` | `1000` | Number of simultaneous walkers propagating along the radial coordinate $r$. |
+| `--seed` | `int` | `None` | Seed for NumPy RNG reproducibility. Pass an integer for deterministic runs. |
+| `--outdir` | `str` | `results/` | Output directory where diagnostic `.png` figures and reports are saved. |
 
 ---
 
 ## Python API Example
 
-In addition to the CLI interface, `vmc_hydrogen` can be imported and executed programmatically as a standard Python package. Below is a minimal working example showing how to initialize the trial wave function, propagate walkers, evaluate local energies, and estimate the statistical error via data blocking:
+In addition to the CLI interface, `vmc_hydrogen` can be imported and executed programmatically as a standard Python package. Below is a minimal working example showing how to initialize the trial wave function, propagate radial walkers, evaluate local energies, and estimate the statistical error via Flyvbjerg-Petersen data blocking:
 
 ```python
-import numpy as np
 from vmc_hydrogen.wavefunctions import Hydrogen1sWaveFunction
 from vmc_hydrogen.sampler import MultiWalkerMetropolis
 from vmc_hydrogen.hamiltonian import local_energy
-from vmc_hydrogen.analysis import blocking_analysis
+from vmc_hydrogen.analysis import blocking_analysis, estimate_energy
 
-# 1. Initialize trial wave function at a given alpha (e.g., exact parameter alpha=1.0)
+# 1. Initialize trial wave function (e.g. at the exact ground state alpha=1.0)
 wf = Hydrogen1sWaveFunction(alpha=1.0)
 
-# 2. Configure 3D multi-walker sampler and thermalize
-sampler = MultiWalkerMetropolis(wavefunction=wf, num_walkers=1000, step_size=0.5, seed=42)
-sampler.thermalize(steps=200)
+# 2. Configure the 1D multi-walker radial Metropolis sampler
+sampler = MultiWalkerMetropolis(
+    wavefunction=wf,
+    num_walkers=1000,
+    step_size=0.5,
+    seed=42,
+)
 
-# 3. Accumulate production configurations
-positions, acceptance_rate = sampler.sample(steps=100)
+# 3. Collect radial samples (includes 200 burn-in/thermalization steps)
+radii = sampler.sample(num_steps=100, thermalization=200)
 
-# 4. Compute radial coordinates and evaluate local energy
-radii = np.linalg.norm(positions, axis=-1)
+# 4. Evaluate local energy values on sampled configurations
 energies = local_energy(radii, alpha=wf.alpha)
 
 # 5. Flyvbjerg-Petersen block averaging analysis
-mean_energy, std_err, block_sizes, errors = blocking_analysis(energies.flatten())
+block_sizes, block_errors = blocking_analysis(energies, min_block_size=10)
+mean_energy, energy_error = estimate_energy(energies)
 
-print(f"Metropolis Acceptance Rate : {acceptance_rate:.1%}")
-print(f"Estimated Energy <E>       : {mean_energy:.6f} +/- {std_err:.6f} Ha")
-print(f"Theoretical Exact E_0      : -0.500000 Ha")
-
+print(f"Estimated Ground State Energy : {mean_energy:.6f} +/- {energy_error:.6f} Ha")
+print(f"Exact Analytical Energy       : -0.500000 Ha")
+print(f"Discrepancy                   : {abs(mean_energy - (-0.5)):.6f} Ha")
 ```
+> **Note on Minimal API Usage:**  
+> The snippet above illustrates the core computational workflow: evaluating the expectation value and statistical uncertainty for a fixed trial wave function without invoking the optimization engine or generating visual artifacts. For full automated parameter optimization and diagnostic figure generation, use the integrated command-line interface (`python -m vmc_hydrogen ...`) or invoke `vmc_hydrogen.optimizer.VariationalOptimizer` directly.
 
 ---
 
@@ -214,20 +215,6 @@ To run a single test module:
 
 ```bash
 pytest tests/test_hamiltonian.py -v
-
-```
-
-To generate a test coverage report directly in the terminal:
-
-```bash
-pytest --cov=vmc_hydrogen -v
-
-```
-
-To export an interactive HTML coverage report to the `htmlcov/` directory:
-
-```bash
-pytest --cov=vmc_hydrogen --cov-report=html
 
 ```
 
