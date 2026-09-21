@@ -13,6 +13,12 @@ __pycache__/
 *$py.class
 *.so
 
+# Packaging and editable install (pip install -e .)
+*.egg-info/
+*.egg
+build/
+dist/
+
 # Testing and coverage
 .pytest_cache/
 .coverage
@@ -30,7 +36,8 @@ env/
 .vscode/
 .idea/
 
-# Generated simulation data and plots
+# Generated simulation data and outputs
+results/
 *.png
 *.pdf
 *.svg

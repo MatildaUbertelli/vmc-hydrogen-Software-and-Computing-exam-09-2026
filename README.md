@@ -20,11 +20,12 @@ This project implements the Variational Monte Carlo (VMC) method to determine th
   - [Key Validation Test Cases](#key-validation-test-cases)
   - [Executing Tests via Pytest](#executing-tests-via-pytest)
 - [Diagnostic Visualizations](#diagnostic-visualizations)
+- [Lincese](#license)
 
 ## Theoretical Background
 
 ### Physical Model and Atomic Units
-The problem is formulated in atomic units where $\hbar = m_e = e = 4\pi\varepsilon_0 = 1$. Distances are measured in Bohr radii ($a_0$) and energies in Hartrees ($E_h$).
+The problem is formulated in atomic units where $\[hbar] = m_e = e = 4\pi\varepsilon_0 = 1$. Distances are measured in Bohr radii ($a_0$) and energies in Hartrees ($E_h$).
 
 Assuming an infinitely heavy nucleus fixed at the origin, the non-relativistic Hamiltonian for the single electron moving in the central Coulomb potential is:
 
@@ -134,6 +135,58 @@ The solver provides a fully configurable Command-Line Interface (CLI) implemente
 ```bash
 python -m vmc_hydrogen --alpha-init 0.5 --walkers 500 --iterations 30 --lr 0.15 --production-steps 100 --outdir results/
 ```
+
+### CLI Parameters and Flags
+
+The application accepts the following command-line flags and parameters via standard `argparse`:
+
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `--alpha-init` | `float` | `0.5` | Initial guess for the variational parameter $\alpha$. Must be positive. |
+| `--walkers` | `int` | `500` | Number of simultaneous walkers propagating in 3D Cartesian space. |
+| `--iterations` | `int` | `30` | Number of stochastic gradient descent steps during optimization. |
+| `--lr` | `float` | `0.15` | Learning rate ($\eta$) used for the damped steepest descent updates. |
+| `--production-steps` | `int` | `100` | Number of MCMC steps performed at the optimal parameter $\alpha^*$. |
+| `--step-size` | `float` | `0.5` | Box half-width ($\delta$) for uniform trial displacement proposals. |
+| `--seed` | `int` | `None` | Random seed for NumPy RNG reproducibility. Set to an integer for deterministic runs. |
+| `--outdir` | `str` | `results/` | Output directory where diagnostic `.png` figures are saved. |
+
+---
+
+## Python API Example
+
+In addition to the CLI interface, `vmc_hydrogen` can be imported and executed programmatically as a standard Python package. Below is a minimal working example showing how to initialize the trial wave function, propagate walkers, evaluate local energies, and estimate the statistical error via data blocking:
+
+```python
+import numpy as np
+from vmc_hydrogen.wavefunctions import Hydrogen1sWaveFunction
+from vmc_hydrogen.sampler import MultiWalkerMetropolis
+from vmc_hydrogen.hamiltonian import local_energy
+from vmc_hydrogen.analysis import blocking_analysis
+
+# 1. Initialize trial wave function at a given alpha (e.g., exact parameter alpha=1.0)
+wf = Hydrogen1sWaveFunction(alpha=1.0)
+
+# 2. Configure 3D multi-walker sampler and thermalize
+sampler = MultiWalkerMetropolis(wavefunction=wf, num_walkers=1000, step_size=0.5, seed=42)
+sampler.thermalize(steps=200)
+
+# 3. Accumulate production configurations
+positions, acceptance_rate = sampler.sample(steps=100)
+
+# 4. Compute radial coordinates and evaluate local energy
+radii = np.linalg.norm(positions, axis=-1)
+energies = local_energy(radii, alpha=wf.alpha)
+
+# 5. Flyvbjerg-Petersen block averaging analysis
+mean_energy, std_err, block_sizes, errors = blocking_analysis(energies.flatten())
+
+print(f"Metropolis Acceptance Rate : {acceptance_rate:.1%}")
+print(f"Estimated Energy <E>       : {mean_energy:.6f} +/- {std_err:.6f} Ha")
+print(f"Theoretical Exact E_0      : -0.500000 Ha")
+
+```
+
 ---
 
 ## Running Unit Tests
@@ -187,3 +240,9 @@ Running the simulation automatically exports three diagnostic figures into the o
 * **`optimization_trajectory.png`**: Tracks the iterative convergence of $\alpha \to 1.0$ and $\langle E_L \rangle \to -0.5\text{ Ha}$, validating algorithmic stability during stochastic gradient descent.
 * **`radial_distribution.png`**: Compares the histogram of sampled electron radii against the exact analytical distribution $P(r) = 4\alpha^3 r^2 e^{-2\alpha r}$, proving correct spatial exploration of the Metropolis Markov chain.
 * **`blocking_analysis.png`**: Displays standard error $\sigma_{\bar{E}}$ versus block size on a logarithmic scale, validating that the correlation plateau is reached and error bars are statistically robust.
+
+---
+
+## License
+
+This project is licensed under the terms of the GNU General Public License v3.0 (GPL-3.0). See the [LICENSE](LICENSE) file in the root directory for the complete license text.

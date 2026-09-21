@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vmc_hydrogen"
+version = "0.1.0"
+description = "Variational Monte Carlo for the Hydrogen Atom Ground State"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "Matilda Ubertelli" }
+]
+dependencies = [
+    "numpy>=1.23.0",
+    "scipy>=1.9.0",
+    "matplotlib>=3.6.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.scripts]
+vmc-hydrogen = "vmc_hydrogen.__main__:main"
