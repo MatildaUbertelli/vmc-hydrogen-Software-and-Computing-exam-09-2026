@@ -17,10 +17,11 @@ This project implements the Variational Monte Carlo (VMC) method to determine th
   - [CLI Parameters and Flags](#cli-parameters-and-flags)
 - [Python API Example](#python-api-example)
 - [Running Unit Tests](#running-unit-tests)
-  - [Key Validation Test Cases](#key-validation-test-cases)
-  - [Executing Tests via Pytest](#executing-tests-via-pytest)
+  - [Executing the Test Suite](#executing-the-test-suite)
+  - [Test Suite Structure](#test-suite-structure)
 - [Diagnostic Visualizations](#diagnostic-visualizations)
 - [Lincese](#license)
+- [References](#references)
 
 ## Theoretical Background
 
@@ -192,31 +193,68 @@ print(f"Discrepancy                   : {abs(mean_energy - (-0.5)):.6f} Ha")
 
 ## Running Unit Tests
 
-The repository includes a comprehensive unit testing suite managed through `pytest`. The test files verify algorithmic edge cases, parameter bounds, stochastic convergence, and theoretical physics oracles.
+The test suite is built on top of `pytest` and verifies mathematical consistency, analytical oracles, numerical stability, and CLI workflows across all modules.
 
-### Key Validation Test Cases
+### Executing the Test Suite
 
-* **Zero-Variance Principle Oracle (`test_hamiltonian.py`)**: Asserts that when $\alpha = 1.0$, the local energy collapses identically to $E_L \equiv -0.5\text{ Ha}$ across all random sample points in space, with numerical standard deviation vanishing identically ($\sigma \approx 0$).
-* **Wave Function Integrity (`test_wavefunctions.py`)**: Checks boundary conditions $\lim_{r \to \infty} \psi(r) = 0$, strictly positive normalization domains, and exact values of analytical logarithmic derivatives.
-* **Metropolis Sampling Acceptance (`test_sampler.py`)**: Validates that the multi-walker 3D Metropolis-Hastings chain exhibits an empirical acceptance rate within the optimal range ($40\%\text{--}60\%$) and correctly ergodically explores configuration space.
-* **Flyvbjerg-Petersen Data Blocking (`test_analysis.py`)**: Asserts that on uncorrelated white noise, the blocking error remains consistent with the theoretical $1/\sqrt{N}$ behavior, while on correlated Markov chains it successfully reaches a stationary error plateau.
-* **CLI & Pipeline Integration (`test_main.py`)**: Verifies parsing of flags and guarantees that end-to-end execution completes generating the requested output artifacts without raising exceptions.
-
-### Executing Tests via Pytest
-
-To execute all test modules with verbose reporting, run from the root directory:
+Run the full test suite with verbose output:
 
 ```bash
 pytest -v
-
 ```
 
-To run a single test module:
+To run tests along with line-by-line code coverage reporting (requires `pytest-cov`):
 
 ```bash
-pytest tests/test_hamiltonian.py -v
-
+pytest --cov=vmc_hydrogen --cov-report=term-missing -v
 ```
+
+Generate an interactive HTML coverage breakdown in `htmlcov/index.html`:
+
+```bash
+pytest --cov=vmc_hydrogen --cov-report=html -v
+```
+
+You can also target individual submodules:
+
+```bash
+pytest tests/test_wavefunctions.py -v   # Wavefunction values, densities, log-derivatives
+pytest tests/test_hamiltonian.py -v     # Local energy evaluations and zero-variance oracle
+pytest tests/test_sampler.py -v         # Metropolis acceptance, proposal positivity, shapes
+pytest tests/test_optimizer.py -v       # Gradient oracle and variational convergence
+pytest tests/test_analysis.py -v        # Flyvbjerg-Petersen blocking and standard error
+pytest tests/test_plots.py -v           # Diagnostic figure generation
+pytest tests/test_main.py -v            # CLI pipeline integration via tmp_path
+```
+
+---
+
+### Test Suite Structure
+
+The test suite contains 20 unit and integration tests structured as follows:
+
+| Test Module | Test Case | Target / Physics Verified |
+| :--- | :--- | :--- |
+| `test_wavefunctions.py` | `test_invalid_alpha_raises_error` | Enforces parameter guard $\alpha > 0$. |
+| | `test_wavefunction_evaluation` | Analytical evaluation of $\psi_T(r) = e^{-\alpha r}$. |
+| | `test_radial_density` | Radial probability density $P(r) \propto r^2 e^{-2\alpha r}$. |
+| | `test_log_derivative` | Exact variational derivative $\partial \ln \psi_T / \partial \alpha = -r$. |
+| `test_hamiltonian.py` | `test_local_energy_exact_oracle` | **Zero-variance principle**: $E_L(r) \equiv -0.5\text{ Ha}$ and $\mathrm{Var}(E_L) = 0$ for $\alpha = 1.0$. |
+| | `test_local_energy_arbitrary_alpha` | Local energy formula $E_L(r, \alpha) = -\frac{1}{2}\alpha^2 + \frac{\alpha - 1}{r}$. |
+| | `test_local_energy_invalid_r` | Exception handling for non-physical radii ($r \le 0$). |
+| `test_sampler.py` | `test_sampler_invalid_parameters` | Input validation for walker counts and proposal step sizes. |
+| | `test_acceptance_rate_range` | Metropolis acceptance rate falls within the physical range $[0.30, 0.85]$. |
+| | `test_sample_output_shape_and_positivity` | Multi-walker array shape verification and strict coordinate positivity ($r > 0$). |
+| `test_optimizer.py` | `test_optimizer_invalid_parameters` | Boundary guards on learning rate, walker count, and step size. |
+| | `test_gradient_oracle_at_analytical_minimum` | **Stationary point oracle**: $\nabla_\alpha \langle E \rangle \to 0$ and $\langle E \rangle = -0.5\text{ Ha}$ at $\alpha = 1.0$. |
+| | `test_optimizer_convergence` | Descent trajectory from $\alpha_0 = 0.6 \to 1.0$ and $\langle E \rangle \to -0.5\text{ Ha}$. |
+| `test_analysis.py` | `test_estimate_energy_exact_oracle` | Zero-variance input yields exact mean and zero standard error. |
+| | `test_blocking_analysis_uncorrelated` | **Flyvbjerg-Petersen invariance**: plateau matches $\sigma / \sqrt{N}$ on i.i.d. Gaussian noise. |
+| | `test_analysis_invalid_inputs` | Exception checks for empty datasets and invalid block partitions. |
+| `test_plots.py` | `test_plot_radial_distribution` | Generation and non-empty file check for radial histogram. |
+| | `test_plot_blocking` | Generation and non-empty file check for error-blocking curves. |
+| | `test_plot_optimization` | Generation and non-empty file check for optimization trajectories. |
+| `test_main.py` | `test_main_cli_execution` | End-to-end CLI execution test returning code `0` and exporting all artifacts into `tmp_path`. |
 
 ---
 
@@ -233,3 +271,20 @@ Running the simulation automatically exports three diagnostic figures into the o
 ## License
 
 This project is licensed under the terms of the GNU General Public License v3.0 (GPL-3.0). See the [LICENSE](LICENSE) file in the root directory for the complete license text.
+
+---
+
+## References
+
+1. **Thijssen, J. M.** (2007).  
+   *Computational Physics.*  
+   Cambridge University Press (2nd Edition).
+
+2. **Massachusetts Institute of Technology (MIT OpenCourseWare)** (2006).  
+   *The Hydrogen Atom: Fundamentals of Photonics and Quantum Electronics.*  
+   Available at: [MIT OCW 6-974 Course Material](https://ocw.mit.edu/courses/6-974-fundamentals-of-photonics-quantum-electronics-spring-2006/8a3eb732190cc7fc2520fa122bed8dcd_hydrogen_atom.pdf)
+
+3. **Jain, S. K., & Singh, V. P.** (2003).  
+   *Chapter 5 – Systems Analysis Techniques.*  
+   In: *Water Resources Systems Planning and Management* (Vol. 51, Developments in Water Science, pp. 279–350). Elsevier.  
+   DOI: [10.1016/S0167-5648(03)80059-X](https://www.sciencedirect.com/science/article/pii/S016756480380059X)
