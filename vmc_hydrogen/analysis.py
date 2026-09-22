@@ -1,4 +1,9 @@
-"""Statistical analysis and error estimation for Monte Carlo trajectories."""
+"""Statistical analysis and error estimation for Monte Carlo trajectories.
+
+This module provides routines for statistical data reduction and uncertainty
+estimation on correlated Markov Chain Monte Carlo time series using the
+blocking (rebinning) technique.
+"""
 
 import numpy as np
 
@@ -16,13 +21,13 @@ def blocking_analysis(data: np.ndarray, min_block_size: int = 10) -> tuple[np.nd
     Returns
     -------
     tuple of (np.ndarray, np.ndarray)
-        - block_sizes: 1D array of evaluated block lengths.
+        - block_sizes: 1D array of evaluated block lengths B.
         - block_errors: 1D array of estimated standard errors for each block size.
 
     Raises
     ------
     ValueError
-        If input array is empty or min_block_size is too large.
+        If the input dataset is empty or `min_block_size` exceeds half the dataset length.
     """
     arr = np.asarray(data, dtype=float)
     n_samples = len(arr)
@@ -53,21 +58,20 @@ def blocking_analysis(data: np.ndarray, min_block_size: int = 10) -> tuple[np.nd
 def estimate_energy(
     local_energies: np.ndarray, block_size: int | None = None
 ) -> tuple[float, float]:
-    """Estimate mean energy and its statistical uncertainty using blocking.
+    """Estimate the expectation value of energy and its statistical uncertainty.
 
     Parameters
     ----------
     local_energies : np.ndarray
-        Array of sampled local energy values.
+        One-dimensional array of local energy values sampled along the Markov chain.
     block_size : int or None, default=None
-        Size of blocks to use. If None, automatically sets block size
-        to N / 100 (minimum 20 samples per block).
+        Length of each sub-block. If None, defaults to :math:`\max(20, N / 100)`.
 
     Returns
     -------
     tuple of (float, float)
-        - mean_energy: Sample mean of the energy.
-        - error: Estimated standard error on the mean taking correlations into account.
+        - mean_energy : Sample mean energy expectation value.
+        - error : Estimated standard error of the mean taking autocorrelation into account.
     """
     arr = np.asarray(local_energies, dtype=float)
     mean_val = float(np.mean(arr))

@@ -1,4 +1,9 @@
-"""Local energy evaluation and Hamiltonian operators for the hydrogen atom."""
+"""Local energy evaluation and Hamiltonian operators for the hydrogen atom.
+
+This module provides routines to evaluate the local energy observable
+for a hydrogenic variational ansatz within the Variational Monte Carlo framework,
+expressed in atomic units (Hartree energy, Bohr radius).
+"""
 
 import numpy as np
 
@@ -9,7 +14,7 @@ def local_energy(r: np.ndarray, alpha: float) -> np.ndarray:
     Parameters
     ----------
     r : np.ndarray
-        Radial distance array in Bohr radii. All values must be strictly positive.
+        Radial coordinates in atomic units (Bohr radii). All elements must be strictly positive to avoid Coulomb singularity division.
     alpha : float
         Variational parameter of the trial wave function.
 
@@ -21,7 +26,7 @@ def local_energy(r: np.ndarray, alpha: float) -> np.ndarray:
     Raises
     ------
     ValueError
-        If any element in r is less than or equal to zero.
+        If any element in r is non-positive (r <= 0.0).
     """
     r_arr = np.asarray(r, dtype=float)
     if np.any(r_arr <= 0.0):

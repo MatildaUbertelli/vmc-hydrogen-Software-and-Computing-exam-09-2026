@@ -1,10 +1,15 @@
-"""Trial wave functions and radial probability densities for the hydrogen atom."""
+"""Trial wave functions and radial probability densities for the hydrogen atom.
+This module provides the functional representations of the hydrogen atom
+variational ansatz in atomic units (Bohr radius, Hartree energy).
+"""
 
 import numpy as np
 
 
 class Hydrogen1sWaveFunction:
   """Trial wave function for the hydrogen atom 1s ground state.
+  
+  The trial wave function is parameterized as psi(r) = exp(-alpha * r), where r is the radial coordinate in atomic units.
 
   Parameters
   ----------
@@ -39,6 +44,8 @@ class Hydrogen1sWaveFunction:
 
   def radial_density(self, r: np.ndarray) -> np.ndarray:
     """Calculate the unnormalized radial target probability density.
+    
+    Accounts for the spherical shell volume element 4 * pi * r^2 dr, yielding rho(r) proportional to r^2 * |psi(r)|^2.
 
     Parameters
     ----------
@@ -54,6 +61,8 @@ class Hydrogen1sWaveFunction:
 
   def log_derivative(self, r: np.ndarray) -> np.ndarray:
     """Evaluate the logarithmic derivative with respect to alpha.
+    
+    Computes d/d(alpha) ln(psi(r)) for stochastic gradient calculations.
 
     Parameters
     ----------

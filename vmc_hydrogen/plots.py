@@ -1,4 +1,7 @@
-"""Visualization utilities for VMC radial distributions, blocking, and optimization."""
+"""Visualization utilities for VMC radial distributions, blocking, and optimization.
+
+This module provides diagnostic plotting routines to assess the empirical Metropolis sampling convergence, autocorrelation decay via blocking analysis, and the stochastic gradient descent trajectory toward the ground-state energy.
+"""
 
 from pathlib import Path
 import matplotlib.pyplot as plt
@@ -15,11 +18,11 @@ def plot_radial_distribution(
     Parameters
     ----------
     samples : np.ndarray
-        Array of sampled radial distances.
+        One-dimensional array of sampled radial distances in atomic units (Bohr).
     alpha : float
-        Variational parameter of the trial wave function.
+        Variational decay parameter of the trial state.
     output_path : str or Path, default="radial_distribution.png"
-        Target file path for saving the figure.
+        Destination file path for the generated figure.
     """
     fig, ax = plt.subplots(figsize=(6.5, 4.5), dpi=150)
 
@@ -36,7 +39,7 @@ def plot_radial_distribution(
         label="VMC Metropolis Samples",
     )
 
-    # Exact analytical radial density: 4 * alpha^3 * r^2 * exp(-2 * alpha * r)
+    # Exact normalized radial probability distribution in spherical coordinates
     r_grid = np.linspace(0.0, 6.0, 300)
     exact_p = 4.0 * (alpha**3) * (r_grid**2) * np.exp(-2.0 * alpha * r_grid)
     ax.plot(
@@ -63,16 +66,16 @@ def plot_blocking(
     block_errors: np.ndarray,
     output_path: str | Path = "blocking_analysis.png",
 ) -> None:
-    """Plot standard error on energy expectation vs block size.
+    """Plot standard error of the mean local energy versus block length.
 
     Parameters
     ----------
     block_sizes : np.ndarray
-        Array of evaluated block lengths.
+        Array of evaluated block sizes B.
     block_errors : np.ndarray
-        Estimated standard error for each block size.
+        Estimated standard error sigma for each corresponding block length.
     output_path : str or Path, default="blocking_analysis.png"
-        Target file path for saving the figure.
+        Destination file path for the generated figure.
     """
     fig, ax = plt.subplots(figsize=(6.5, 4.0), dpi=150)
 
@@ -92,26 +95,28 @@ def plot_optimization(
     history: dict[str, list[float]],
     output_path: str | Path = "optimization_trajectory.png",
 ) -> None:
-    """Plot parameter alpha and energy trajectory across optimization steps.
+    """Plot the parameter and energy trajectories across optimization steps.
+
+    Generates a two-panel figure showing the convergence of the variational parameter alpha toward the exact value (1.0) and the expectation value of the energy toward the exact ground-state energy (-0.5 Hartree).
 
     Parameters
     ----------
     history : dict of str to list of float
-        Dictionary containing 'alpha' and 'energy' series.
+        Dictionary containing trajectories with keys 'alpha' and 'energy'.
     output_path : str or Path, default="optimization_trajectory.png"
-        Target file path for saving the figure.
+        Destination file path for the generated figure.
     """
     iterations = range(len(history["alpha"]))
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6.5, 6.0), sharex=True, dpi=150)
 
-    # Alpha trajectory
+    # Variational parameter alpha convergence trajectory
     ax1.plot(iterations, history["alpha"], "o-", color="darkgreen", ms=4, lw=1.5)
     ax1.axhline(1.0, color="grey", linestyle=":", label=r"Exact $\alpha = 1.0$")
     ax1.set_ylabel(r"Variational Parameter $\alpha$")
     ax1.grid(True, linestyle="--", alpha=0.5)
     ax1.legend()
 
-    # Energy trajectory
+    # Energy expectation convergence trajectory
     ax2.plot(iterations, history["energy"], "s-", color="purple", ms=4, lw=1.5)
     ax2.axhline(-0.5, color="grey", linestyle=":", label="Exact $E = -0.5$ Ha")
     ax2.set_xlabel("Iteration Step")
