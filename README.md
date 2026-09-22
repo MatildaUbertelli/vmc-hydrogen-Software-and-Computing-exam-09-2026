@@ -92,8 +92,7 @@ underestimates the real uncertainty because it omits the integrated autocorrelat
 
 To produce an unbiased statistical error on the estimated ground-state energy, the package applies the **Flyvbjerg-Petersen block averaging** technique (data blocking):
 1. The chronological series of local energy samples $E_L$ of size $N$ is divided into $N_b$ consecutive, non-overlapping blocks of length $B$ ($N = N_b \cdot B$).
-2. The sample mean of each block is evaluated:
-   $$\bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b$$
+2. The sample mean of each block is evaluated: $$ \bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b  $$
 3. The standard error on the mean is calculated across block averages:
    $$\sigma_{\bar{E}}(B) = \frac{1}{\sqrt{N_b (N_b - 1)}} \sqrt{\sum_{k=1}^{N_b} (\bar{E}_k - \langle E_L \rangle)^2}$$
 
@@ -102,8 +101,6 @@ As the block length $B$ surpasses the correlation window ($B \gg 2\tau_{\text{in
 ---
 
 ## Software Architecture
-
-The package follows a strictly modular layout complying with academic software standards:
 
 * **`vmc_hydrogen.wavefunctions`**: Implements the trial wave function $\psi_T(\alpha, r)$ and logarithmic derivatives.
 * **`vmc_hydrogen.hamiltonian`**: Computes the analytical local energy $E_L(\alpha, r)$.
