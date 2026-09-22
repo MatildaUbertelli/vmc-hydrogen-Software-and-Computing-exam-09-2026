@@ -92,7 +92,9 @@ underestimates the real uncertainty because it omits the integrated autocorrelat
 
 To produce an unbiased statistical error on the estimated ground-state energy, the package applies the **Flyvbjerg-Petersen block averaging** technique (data blocking):
 1. The chronological series of local energy samples $E_L$ of size $N$ is divided into $N_b$ consecutive, non-overlapping blocks of length $B$ ($N = N_b \cdot B$).
-2. The sample mean of each block is evaluated: $$ \bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b  $$
+2. The sample mean of each block is evaluated: $$
+\bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b
+$$
 3. The standard error on the mean is calculated across block averages:
    $$\sigma_{\bar{E}}(B) = \frac{1}{\sqrt{N_b (N_b - 1)}} \sqrt{\sum_{k=1}^{N_b} (\bar{E}_k - \langle E_L \rangle)^2}$$
 
@@ -130,27 +132,29 @@ pip install -e .
 The package provides an integrated Command-Line Interface (CLI) based on Python's standard `argparse` module to run parameter optimization, production sampling, and automated diagnostic plot generation:
 
 ```bash
-python -m vmc_hydrogen --alpha-init 0.5 --walkers 500 --iterations 30 --lr 0.15 --seed 42 --outdir results
+python -m vmc_hydrogen --alpha-init 0.5 --walkers 500 --iterations 30 --lr 0.15 --steps 200 --therm 200 --seed 42 --outdir results
 ```
 
 ### CLI Parameters and Flags
 
-The application accepts the following command-line flags and parameters via standard `argparse`:
+The application accepts the following command-line flags and parameters via standard `argparse`, organized into functional argument groups:
 
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `--alpha-init` | `float` | `0.5` | Initial guess for the variational parameter $\alpha$. Must be strictly positive. |
-| `--lr` | `float` | `0.15` | Learning rate ($\eta$) used for damped steepest descent parameter updates. |
-| `--iterations` | `int` | `30` | Number of stochastic gradient descent steps during parameter optimization. |
-| `--walkers` | `int` | `1000` | Number of simultaneous walkers propagating along the radial coordinate $r$. |
-| `--seed` | `int` | `None` | Seed for NumPy RNG reproducibility. Pass an integer for deterministic runs. |
-| `--outdir` | `str` | `results/` | Output directory where diagnostic `.png` figures and reports are saved. |
+| `--alpha-init` | `float` | `0.5` | Initial guess for the variational decay parameter $\alpha$. Must be strictly positive ($\alpha > 0$). |
+| `--lr` | `float` | `0.15` | Learning rate ($\eta$) used for stochastic gradient descent parameter updates. Must be $> 0$. |
+| `--iterations` | `int` | `30` | Maximum number of gradient descent iterations during variational parameter optimization. |
+| `--walkers` | `int` | `500` | Number of concurrent Metropolis-Hastings random walkers propagating along $r$. |
+| `--steps` | `int` | `200` | Production sampling steps per walker accumulated with the optimal parameter $\alpha^*$.|
+| `--therm` | `int` | `200` | Thermalization (burn-in) steps discarded during the final high-statistics production run at $\alpha^*$.|
+| `--seed` | `int` | `42` | Seed for pseudorandom number generation to ensure deterministic reproducibility. |
+| `--outdir` | `Path` | `results/` | Target directory where diagnostic figures (`.png`) and numerical summaries (`.json`) are stored. |
 
 ---
 
 ## Python API Example
 
-In addition to the CLI interface, `vmc_hydrogen` can be imported and executed programmatically as a standard Python package. Below is a minimal working example showing how to initialize the trial wave function, propagate radial walkers, evaluate local energies, and estimate the statistical error via Flyvbjerg-Petersen data blocking:
+In addition to the CLI interface, `vmc_hydrogen` can be imported and executed programmatically as a standard Python package. Below is an updated minimal working example showing how to initialize the trial wave function, configure production and thermalization steps, evaluate local energies, and estimate the statistical error via Flyvbjerg-Petersen data blocking:
 
 ```python
 from vmc_hydrogen.wavefunctions import Hydrogen1sWaveFunction
@@ -158,21 +162,22 @@ from vmc_hydrogen.sampler import MultiWalkerMetropolis
 from vmc_hydrogen.hamiltonian import local_energy
 from vmc_hydrogen.analysis import blocking_analysis, estimate_energy
 
-# 1. Initialize trial wave function (e.g. at the exact ground state alpha=1.0)
+# 1. Initialize trial wave function (e.g., at the exact ground state alpha = 1.0)
 wf = Hydrogen1sWaveFunction(alpha=1.0)
 
 # 2. Configure the 1D multi-walker radial Metropolis sampler
 sampler = MultiWalkerMetropolis(
     wavefunction=wf,
-    num_walkers=1000,
-    step_size=0.5,
+    num_walkers=500,
+    step_size=0.5 / wf.alpha,
     seed=42,
 )
 
-# 3. Collect radial samples (includes 200 burn-in/thermalization steps)
-radii = sampler.sample(num_steps=100, thermalization=200)
+# 3. Collect radial samples using configurable thermalization (burn-in) and production steps
+#    Corresponding to CLI flags --therm 200 and --steps 200
+radii = sampler.sample(num_steps=200, thermalization=200)
 
-# 4. Evaluate local energy values on sampled configurations
+# 4. Evaluate local energy values on sampled configurations (atomic units)
 energies = local_energy(radii, alpha=wf.alpha)
 
 # 5. Flyvbjerg-Petersen block averaging analysis
@@ -184,7 +189,7 @@ print(f"Exact Analytical Energy       : -0.500000 Ha")
 print(f"Discrepancy                   : {abs(mean_energy - (-0.5)):.6f} Ha")
 ```
 > **Note on Minimal API Usage:**  
-> The snippet above illustrates the core computational workflow: evaluating the expectation value and statistical uncertainty for a fixed trial wave function without invoking the optimization engine or generating visual artifacts. For full automated parameter optimization and diagnostic figure generation, use the integrated command-line interface (`python -m vmc_hydrogen ...`) or invoke `vmc_hydrogen.optimizer.VariationalOptimizer` directly.
+> The snippet above illustrates the core computational workflow: evaluating the expectation value and statistical uncertainty for a fixed trial wave function without invoking the optimization engine or generating visual artifacts (such as diagnostic plots). For full automated parameter optimization and diagnostic figure generation, use the integrated command-line interface (`python -m vmc_hydrogen ...`) or invoke `vmc_hydrogen.optimizer.VariationalOptimizer` directly.
 
 ---
 
@@ -228,7 +233,7 @@ pytest tests/test_main.py -v            # CLI pipeline integration via tmp_path
 
 ### Test Suite Structure
 
-The test suite contains 20 unit and integration tests structured as follows:
+The test suite contains 21 unit and integration tests structured as follows:
 
 | Test Module | Test Case | Target / Physics Verified |
 | :--- | :--- | :--- |
@@ -251,17 +256,27 @@ The test suite contains 20 unit and integration tests structured as follows:
 | `test_plots.py` | `test_plot_radial_distribution` | Generation and non-empty file check for radial histogram. |
 | | `test_plot_blocking` | Generation and non-empty file check for error-blocking curves. |
 | | `test_plot_optimization` | Generation and non-empty file check for optimization trajectories. |
-| `test_main.py` | `test_main_cli_execution` | End-to-end CLI execution test returning code `0` and exporting all artifacts into `tmp_path`. |
-
+| `test_main.py` | `test_main_cli_execution` | End-to-end CLI integration returning code `0`, generating non-empty diagnostic plots, and validating schema/data of `simulation_summary.json`. |
+| | `test_main_cli_invalid_arguments` | Boundary verification via `@pytest.mark.parametrize` ensuring non-physical or negative flags raise `SystemExit`. |
 ---
 
-## Diagnostic Visualizations
+## Diagnostic Visualizations and Output Artifacts
 
-Running the simulation automatically exports three diagnostic figures into the output folder (default: `results/`):
+Executing the simulation automatically exports three publication-quality diagnostic figures (saved as 150 DPI PNG files) and a structured JSON summary into the specified output directory (default: `results/`):
 
-* **`optimization_trajectory.png`**: Tracks the iterative convergence of $\alpha \to 1.0$ and $\langle E_L \rangle \to -0.5\text{ Ha}$, validating algorithmic stability during stochastic gradient descent.
-* **`radial_distribution.png`**: Compares the histogram of sampled electron radii against the exact analytical distribution $P(r) = 4\alpha^3 r^2 e^{-2\alpha r}$, proving correct spatial exploration of the Metropolis Markov chain.
-* **`blocking_analysis.png`**: Displays standard error $\sigma_{\bar{E}}$ versus block size on a logarithmic scale, validating that the correlation plateau is reached and error bars are statistically robust.
+* **`optimization_trajectory.png`**:  
+  Tracks the convergence histories across optimization iterations for both the variational parameter $\alpha_k \to \alpha^* \approx 1.0$ and the sample energy expectation value $\langle E_L \rangle \to -0.5\text{ Ha}$. Includes visual reference lines for the analytical minimum and illustrates the progressive suppression of the stochastic gradient as the algorithm approaches the stationary ground state.
+
+* **`radial_distribution.png`**:  
+  Validates the spatial exploration of the Markov chain during the final production run. The normalized histogram of accumulated radial walker coordinates $r$ is plotted against the exact theoretical probability density:
+  $$P(r) = 4(\alpha^*)^3 r^2 e^{-2\alpha^* r}$$
+  confirming that the equilibrium distribution has been reached following the `--therm` burn-in phase.
+
+* **`blocking_analysis.png`**:  
+  Presents the statistical error $\sigma_{\bar{E}}$ on the energy expectation value as a function of block size $B$ (Flyvbjerg-Petersen rebinning). Displays the initial underestimation due to serial autocorrelation and highlights the asymptotic plateau where block averages become independent identically distributed (i.i.d.) variables, confirming that the reported error bar is statistically robust and uncorrupted by correlation.
+
+* **`simulation_summary.json`**:  
+  A machine-readable numerical summary recording the optimal variational parameter $\alpha^*$, the estimated ground-state energy $\langle E \rangle \pm \sigma_{\bar{E}}$, the analytical discrepancy $\vert{} \langle E \rangle - (-0.5) \vert{}$, the total configuration count ($N_{\text{walkers}} \times N_{\text{steps}}$), and the full CLI execution metadata to ensure reproducibility.
 
 ---
 

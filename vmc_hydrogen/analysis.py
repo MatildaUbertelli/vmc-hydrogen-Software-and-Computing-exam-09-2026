@@ -9,7 +9,7 @@ import numpy as np
 
 
 def blocking_analysis(data: np.ndarray, min_block_size: int = 10) -> tuple[np.ndarray, np.ndarray]:
-    """Compute the standard error of the mean as a function of block size.
+    r"""Compute the standard error of the mean as a function of block size.
 
     Parameters
     ----------
@@ -58,7 +58,7 @@ def blocking_analysis(data: np.ndarray, min_block_size: int = 10) -> tuple[np.nd
 def estimate_energy(
     local_energies: np.ndarray, block_size: int | None = None
 ) -> tuple[float, float]:
-    """Estimate the expectation value of energy and its statistical uncertainty.
+    r"""Estimate the expectation value of energy and its statistical uncertainty.
 
     Parameters
     ----------

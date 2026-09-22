@@ -1,8 +1,15 @@
-"""Command-line interface entry point for vmc_hydrogen package."""
+"""Command-line interface entry point for the vmc_hydrogen package.
+
+Executes the full Variational Monte Carlo workflow: stochastic gradient
+descent optimization of the trial wave function parameter, followed by
+an equilibrium production sampling run and statistical data blocking.
+"""
 
 import argparse
+import json
 import sys
 from pathlib import Path
+
 from vmc_hydrogen.analysis import blocking_analysis, estimate_energy
 from vmc_hydrogen.hamiltonian import local_energy
 from vmc_hydrogen.optimizer import VariationalOptimizer
@@ -16,82 +23,142 @@ from vmc_hydrogen.wavefunctions import Hydrogen1sWaveFunction
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Construct argument parser for CLI execution.
+    """Construct and configure the command-line argument parser.
 
     Returns
     -------
     argparse.ArgumentParser
-        Configured argument parser instance.
+        Configured parser instance with structured argument groups.
     """
     parser = argparse.ArgumentParser(
         prog="vmc_hydrogen",
-        description="Variational Monte Carlo solver for the Hydrogen atom 1s ground state.",
+        description="Variational Monte Carlo solver for the hydrogen atom 1s ground state.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
+
+    # Variational Optimization arguments
+    opt_group = parser.add_argument_group("Optimization Parameters")
+    opt_group.add_argument(
         "--alpha-init",
         type=float,
         default=0.5,
-        help="Initial variational parameter alpha (default: 0.5).",
+        help="Initial variational parameter alpha (> 0).",
     )
-    parser.add_argument(
+    opt_group.add_argument(
         "--lr",
         type=float,
         default=0.15,
-        help="Learning rate for gradient descent (default: 0.15).",
+        help="Learning rate for stochastic gradient descent.",
     )
-    parser.add_argument(
+    opt_group.add_argument(
         "--iterations",
         type=int,
         default=30,
-        help="Maximum optimization iterations (default: 30).",
+        help="Maximum number of gradient descent iterations.",
     )
-    parser.add_argument(
+    opt_group.add_argument(
+        "--steps-per-iter",
+        type=int,
+        default=50,
+        help="MCMC sampling steps per walker at each optimization iteration.",
+    )
+
+    # Production sampling arguments
+    mcmc_group = parser.add_argument_group("MCMC Sampling Parameters")
+    mcmc_group.add_argument(
         "--walkers",
         type=int,
         default=500,
-        help="Number of parallel Metropolis walkers (default: 500).",
+        help="Number of concurrent Metropolis-Hastings random walkers.",
     )
-    parser.add_argument(
+    mcmc_group.add_argument(
+        "--steps",
+        type=int,
+        default=200,
+        help="Production sampling steps recorded per walker with optimal alpha.",
+    )
+    mcmc_group.add_argument(
+        "--therm",
+        type=int,
+        default=200,
+        help="Thermalization (burn-in) steps discarded prior to production sampling.",
+    )
+
+    # Output and Reproducibility arguments
+    io_group = parser.add_argument_group("I/O and Reproducibility")
+    io_group.add_argument(
         "--seed",
         type=int,
         default=42,
-        help="Random number generator seed (default: 42).",
+        help="Seed for pseudorandom number generation to ensure reproducibility.",
     )
-    parser.add_argument(
+    io_group.add_argument(
         "--outdir",
-        type=str,
-        default="results",
-        help="Directory where diagnostic plots will be stored (default: 'results').",
+        type=Path,
+        default=Path("results"),
+        help="Directory where diagnostic plots and numerical summaries are stored.",
     )
+
     return parser
 
 
+def validate_args(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """Validate numerical constraints on input arguments.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed CLI arguments.
+    parser : argparse.ArgumentParser
+        Parser instance used to signal configuration errors.
+    """
+    if args.alpha_init <= 0.0:
+        parser.error("--alpha-init must be strictly positive.")
+    if args.lr <= 0.0:
+        parser.error("--lr must be strictly positive.")
+    if args.iterations <= 0:
+        parser.error("--iterations must be a positive integer.")
+    if args.steps_per_iter <= 0:
+        parser.error("--steps-per-iter must be a positive integer.")
+    if args.walkers <= 0:
+        parser.error("--walkers must be a positive integer.")
+    if args.steps <= 0:
+        parser.error("--steps must be a positive integer.")
+    if args.therm < 0:
+        parser.error("--therm must be a non-negative integer.")
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Run full VMC optimization workflow and produce diagnostics.
+    """Execute the complete VMC optimization and analysis pipeline.
 
     Parameters
     ----------
     argv : list of str or None, default=None
-        Command line argument list. If None, sys.argv[1:] is used.
+        Command-line argument vector. If None, sys.argv[1:] is used.
 
     Returns
     -------
     int
-        Exit status code (0 for success).
+        Status code (0 for successful termination).
     """
     parser = build_parser()
     args = parser.parse_args(argv)
+    validate_args(args, parser)
 
-    outdir = Path(args.outdir)
+    outdir = args.outdir
     outdir.mkdir(parents=True, exist_ok=True)
 
     print("==========================================================")
     print(" VMC Hydrogen Ground State Optimization (Atomic Units)")
     print("==========================================================")
-    print(f"Initial alpha : {args.alpha_init}")
-    print(f"Walkers       : {args.walkers}")
-    print(f"Iterations    : {args.iterations}")
-    print(f"Learning rate : {args.lr}")
+    print(f"Initial alpha         : {args.alpha_init:.4f}")
+    print(f"Parallel Walkers      : {args.walkers}")
+    print(f"Optimization Cycles   : {args.iterations}")
+    print(f"Steps per iteration   : {args.steps_per_iter}")
+    print(f"Learning Rate         : {args.lr:.4f}")
+    print(f"Production Steps      : {args.steps}")
+    print(f"Thermalization Steps  : {args.therm}")
+    print(f"Random Seed           : {args.seed}")
     print("----------------------------------------------------------")
 
     # Step 1: Variational optimization via stochastic gradient descent
@@ -99,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
         initial_alpha=args.alpha_init,
         learning_rate=args.lr,
         num_walkers=args.walkers,
-        steps_per_iter=50,
+        steps_per_iter=args.steps_per_iter,
         seed=args.seed,
     )
     history = optimizer.optimize(max_iterations=args.iterations)
@@ -107,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
     opt_alpha = history["alpha"][-1]
     print(f"Optimal variational parameter alpha* = {opt_alpha:.4f}")
 
-    # Plot optimization curves
+    # Export optimization convergence trajectories
     plot_optimization(history, output_path=outdir / "optimization_trajectory.png")
 
     # Step 2: High-statistics production run with optimal alpha
@@ -120,7 +187,7 @@ def main(argv: list[str] | None = None) -> int:
         seed=args.seed + 1,
     )
 
-    production_samples = sampler.sample(num_steps=200, thermalization=200)
+    production_samples = sampler.sample(num_steps=args.steps, thermalization=args.therm)
     energies = local_energy(production_samples, opt_alpha)
 
     # Step 3: Statistical data blocking analysis
@@ -129,17 +196,35 @@ def main(argv: list[str] | None = None) -> int:
 
     mean_energy, energy_err = estimate_energy(energies)
 
-    # Plot final radial distribution
+    # Export final empirical vs theoretical radial distribution
     plot_radial_distribution(
         production_samples,
         alpha=opt_alpha,
         output_path=outdir / "radial_distribution.png",
     )
 
+    # Step 4: Persist structured numerical artifacts
+    summary_data = {
+        "optimal_alpha": float(opt_alpha),
+        "mean_energy_hartree": float(mean_energy),
+        "energy_error_hartree": float(energy_err),
+        "exact_energy_hartree": -0.5,
+        "absolute_discrepancy_hartree": float(abs(mean_energy - (-0.5))),
+        "num_walkers": args.walkers,
+        "production_steps": args.steps,
+        "thermalization_steps": args.therm,
+        "total_configurations": int(args.walkers * args.steps),
+    }
+
+    summary_file = outdir / "simulation_summary.json"
+    with open(summary_file, "w", encoding="utf-8") as f:
+        json.dump(summary_data, f, indent=4)
+
     print("----------------------------------------------------------")
     print(f"Estimated Ground State Energy : {mean_energy:.6f} +/- {energy_err:.6f} Ha")
     print("Exact Analytical Energy       : -0.500000 Ha")
     print(f"Discrepancy                   : {abs(mean_energy - (-0.5)):.6f} Ha")
+    print(f"Numerical summary written to  : '{summary_file.resolve()}'")
     print(f"Artifacts successfully saved in directory: '{outdir.resolve()}'")
     print("==========================================================")
 
