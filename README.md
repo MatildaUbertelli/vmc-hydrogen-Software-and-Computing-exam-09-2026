@@ -91,14 +91,14 @@ $$\sigma_{\text{naive}} = \frac{\sigma}{\sqrt{N}}$$
 underestimates the real uncertainty because it omits the integrated autocorrelation time $\tau_{\text{int}}$.
 
 To produce an unbiased statistical error on the estimated ground-state energy, the package applies the **Flyvbjerg-Petersen block averaging** technique (data blocking):
-1. The chronological series of local energy samples $E_L$ of size $N$ is divided into $N_b$ consecutive, non-overlapping blocks of length $B$ ($N = N_b \cdot B$).
-2. The sample mean of each block is evaluated: $$
-\bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b
-$$
-3. The standard error on the mean is calculated across block averages:
-   $$\sigma_{\bar{E}}(B) = \frac{1}{\sqrt{N_b (N_b - 1)}} \sqrt{\sum_{k=1}^{N_b} (\bar{E}_k - \langle E_L \rangle)^2}$$
 
-As the block length $B$ surpasses the correlation window ($B \gg 2\tau_{\text{int}}$), consecutive block averages become mutually uncorrelated and $\sigma_{\bar{E}}(B)$ reaches a plateau. The value on this plateau represents the genuine standard error of the Monte Carlo simulation.
+1. The chronological series of local energy samples $E_L$ of size $N$ is divided into $N_b$ consecutive, non-overlapping blocks of length $B$, such that $N = N_b \cdot B$.
+2. The sample mean of each block is evaluated:
+   $$\bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b$$
+3. The standard error of the mean is calculated across block averages:
+   $$\sigma_{\bar{E}}(B) = \sqrt{\frac{1}{N_b (N_b - 1)} \sum_{k=1}^{N_b} (\bar{E}_k - \langle E_L \rangle)^2}$$
+
+As the block length $B$ surpasses the correlation window ($B \gg 2\tau_{\text{int}}$), consecutive block averages become mutually uncorrelated and $\sigma_{\bar{E}}(B)$ reaches an asymptotic plateau. The value on this plateau represents the true, unbiased standard error of the Monte Carlo simulation.
 
 ---
 
@@ -132,7 +132,7 @@ pip install -e .
 The package provides an integrated Command-Line Interface (CLI) based on Python's standard `argparse` module to run parameter optimization, production sampling, and automated diagnostic plot generation:
 
 ```bash
-python -m vmc_hydrogen --alpha-init 0.5 --walkers 500 --iterations 30 --lr 0.15 --steps 200 --therm 200 --seed 42 --outdir results
+python -m vmc_hydrogen --alpha-init 0.5 --walkers 500 --iterations 30 --steps-per-iter 50 --lr 0.15 --steps 200 --therm 200 --seed 42 --outdir results
 ```
 
 ### CLI Parameters and Flags
@@ -144,6 +144,7 @@ The application accepts the following command-line flags and parameters via stan
 | `--alpha-init` | `float` | `0.5` | Initial guess for the variational decay parameter $\alpha$. Must be strictly positive ($\alpha > 0$). |
 | `--lr` | `float` | `0.15` | Learning rate ($\eta$) used for stochastic gradient descent parameter updates. Must be $> 0$. |
 | `--iterations` | `int` | `30` | Maximum number of gradient descent iterations during variational parameter optimization. |
+| `--steps-per-iter` | `int` | `50` | Number of MCMC sampling steps per walker accumulated during each optimization iteration. Must be $> 0$. |
 | `--walkers` | `int` | `500` | Number of concurrent Metropolis-Hastings random walkers propagating along $r$. |
 | `--steps` | `int` | `200` | Production sampling steps per walker accumulated with the optimal parameter $\alpha^*$.|
 | `--therm` | `int` | `200` | Thermalization (burn-in) steps discarded during the final high-statistics production run at $\alpha^*$.|
@@ -233,31 +234,19 @@ pytest tests/test_main.py -v            # CLI pipeline integration via tmp_path
 
 ### Test Suite Structure
 
-The test suite contains 21 unit and integration tests structured as follows:
+The test suite contains 27 unit and integration tests structured as follows:
 
-| Test Module | Test Case | Target / Physics Verified |
-| :--- | :--- | :--- |
-| `test_wavefunctions.py` | `test_invalid_alpha_raises_error` | Enforces parameter guard $\alpha > 0$. |
-| | `test_wavefunction_evaluation` | Analytical evaluation of $\psi_T(r) = e^{-\alpha r}$. |
-| | `test_radial_density` | Radial probability density $P(r) \propto r^2 e^{-2\alpha r}$. |
-| | `test_log_derivative` | Exact variational derivative $\partial \ln \psi_T / \partial \alpha = -r$. |
-| `test_hamiltonian.py` | `test_local_energy_exact_oracle` | **Zero-variance principle**: $E_L(r) \equiv -0.5\text{ Ha}$ and $\mathrm{Var}(E_L) = 0$ for $\alpha = 1.0$. |
-| | `test_local_energy_arbitrary_alpha` | Local energy formula $E_L(r, \alpha) = -\frac{1}{2}\alpha^2 + \frac{\alpha - 1}{r}$. |
-| | `test_local_energy_invalid_r` | Exception handling for non-physical radii ($r \le 0$). |
-| `test_sampler.py` | `test_sampler_invalid_parameters` | Input validation for walker counts and proposal step sizes. |
-| | `test_acceptance_rate_range` | Metropolis acceptance rate falls within the physical range $[0.30, 0.85]$. |
-| | `test_sample_output_shape_and_positivity` | Multi-walker array shape verification and strict coordinate positivity ($r > 0$). |
-| `test_optimizer.py` | `test_optimizer_invalid_parameters` | Boundary guards on learning rate, walker count, and step size. |
-| | `test_gradient_oracle_at_analytical_minimum` | **Stationary point oracle**: $\nabla_\alpha \langle E \rangle \to 0$ and $\langle E \rangle = -0.5\text{ Ha}$ at $\alpha = 1.0$. |
-| | `test_optimizer_convergence` | Descent trajectory from $\alpha_0 = 0.6 \to 1.0$ and $\langle E \rangle \to -0.5\text{ Ha}$. |
-| `test_analysis.py` | `test_estimate_energy_exact_oracle` | Zero-variance input yields exact mean and zero standard error. |
-| | `test_blocking_analysis_uncorrelated` | **Flyvbjerg-Petersen invariance**: plateau matches $\sigma / \sqrt{N}$ on i.i.d. Gaussian noise. |
-| | `test_analysis_invalid_inputs` | Exception checks for empty datasets and invalid block partitions. |
-| `test_plots.py` | `test_plot_radial_distribution` | Generation and non-empty file check for radial histogram. |
-| | `test_plot_blocking` | Generation and non-empty file check for error-blocking curves. |
-| | `test_plot_optimization` | Generation and non-empty file check for optimization trajectories. |
-| `test_main.py` | `test_main_cli_execution` | End-to-end CLI integration returning code `0`, generating non-empty diagnostic plots, and validating schema/data of `simulation_summary.json`. |
-| | `test_main_cli_invalid_arguments` | Boundary verification via `@pytest.mark.parametrize` ensuring non-physical or negative flags raise `SystemExit`. |
+| Module | Tests | Target / Physics Verified |
+| :--- | :---: | :--- |
+| `test_wavefunctions.py` | 4 | $1s$ ansatz, radial density $P(r) \propto r^2 e^{-2\alpha r}$, log-derivative, and $\alpha > 0$ boundary guard. |
+| `test_hamiltonian.py` | 3 | **Zero-variance principle** ($\mathrm{Var}(E_L) = 0$ at $\alpha = 1.0$), local energy formula, and $r \le 0$ error handling. |
+| `test_sampler.py` | 3 | Multi-walker Metropolis, acceptance window $[0.30, 0.85]$, coordinate positivity ($r > 0$), and input checks. |
+| `test_optimizer.py` | 3 | **Stationary point oracle** ($\nabla_\alpha \langle E \rangle = 0$ at $\alpha = 1.0$), SGD convergence, and parameter bounds. |
+| `test_analysis.py` | 3 | Exact energy estimation, Flyvbjerg-Petersen blocking invariance on white noise, and empty-array guards. |
+| `test_plots.py` | 3 | Non-empty diagnostic PNG generation with memory-safe teardown fixture (`plt.close`). |
+| `test_main.py` | 8 | End-to-end CLI workflow with JSON export validation and 7 parametrized boundary tests raising `SystemExit`. |
+| **Total** | **27** | **100% pass rate with zero warnings.** |
+
 ---
 
 ## Diagnostic Visualizations and Output Artifacts

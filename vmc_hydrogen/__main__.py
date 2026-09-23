@@ -5,6 +5,8 @@ descent optimization of the trial wave function parameter, followed by
 an equilibrium production sampling run and statistical data blocking.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import sys
@@ -60,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--steps-per-iter",
         type=int,
         default=50,
-        help="MCMC sampling steps per walker at each optimization iteration.",
+        help="Number of MCMC sampling steps per walker during each optimization step.",
     )
 
     # Production sampling arguments
@@ -211,6 +213,7 @@ def main(argv: list[str] | None = None) -> int:
         "exact_energy_hartree": -0.5,
         "absolute_discrepancy_hartree": float(abs(mean_energy - (-0.5))),
         "num_walkers": args.walkers,
+        "steps_per_iter": args.steps_per_iter,
         "production_steps": args.steps,
         "thermalization_steps": args.therm,
         "total_configurations": int(args.walkers * args.steps),
