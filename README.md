@@ -93,8 +93,10 @@ underestimates the real uncertainty because it omits the integrated autocorrelat
 To produce an unbiased statistical error on the estimated ground-state energy, the package applies the **Flyvbjerg-Petersen block averaging** technique (data blocking):
 
 1. The chronological series of local energy samples $E_L$ of size $N$ is divided into $N_b$ consecutive, non-overlapping blocks of length $B$, such that $N = N_b \cdot B$.
-2. The sample mean of each block is evaluated: $\bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b$
-3. The standard error of the mean is calculated across block averages: $$\sigma_{\bar{E}}(B) = \sqrt{\frac{1}{N_b (N_b - 1)} \sum_{k=1}^{N_b} (\bar{E}_k - \langle E_L \rangle)^2}$$
+2. The sample mean of each block is evaluated:<br>
+   $\displaystyle \bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b$
+3. The standard error of the mean is calculated across block averages:<br>
+   $\displaystyle \sigma_{\bar{E}}(B) = \sqrt{\frac{1}{N_b (N_b - 1)} \sum_{k=1}^{N_b} (\bar{E}_k - \langle E_L \rangle)^2}$
 
 As the block length $B$ surpasses the correlation window ($B \gg 2\tau_{\text{int}}$), consecutive block averages become mutually uncorrelated and $\sigma_{\bar{E}}(B)$ reaches an asymptotic plateau. The value on this plateau represents the true, unbiased standard error of the Monte Carlo simulation.
 
