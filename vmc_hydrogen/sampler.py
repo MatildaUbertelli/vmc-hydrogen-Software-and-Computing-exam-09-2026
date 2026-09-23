@@ -118,8 +118,10 @@ class MultiWalkerMetropolis:
         np.ndarray
             One-dimensional array of accumulated radial coordinates of shape (num_steps * num_walkers,).
         """
-        if thermalization > 0:
-            self.thermalize(thermalization)
+        if num_steps <= 0:
+            raise ValueError("num_steps must be a strictly positive integer.")
+        if thermalization < 0:
+            raise ValueError("thermalization must be a non-negative integer.")
 
         history = np.empty((num_steps, self.num_walkers), dtype=float)
         for i in range(num_steps):

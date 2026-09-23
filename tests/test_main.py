@@ -4,20 +4,26 @@ Validates end-to-end execution flow, artifact generation (diagnostic plots
 and numerical summaries), and command-line argument validation.
 """
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
+
+import matplotlib.pyplot as plt
 import pytest
+
 from vmc_hydrogen.__main__ import build_parser, main, validate_args
 
 
-def test_main_cli_execution(tmp_path: Path) -> None:
-    """Verify execution of the CLI main loop and integrity of generated artifacts.
+@pytest.fixture(autouse=True)
+def cleanup_figures() -> None:
+    """Ensure all Matplotlib figures are closed after each integration test."""
+    yield
+    plt.close("all")
 
-    Parameters
-    ----------
-    tmp_path : Path
-        Pytest fixture providing an isolated temporary directory.
-    """
+
+def test_main_cli_execution(tmp_path: Path) -> None:
+    """Verify execution of the CLI main loop and integrity of generated artifacts."""
     out_dir = tmp_path / "cli_test_out"
 
     exit_code = main(
@@ -59,14 +65,18 @@ def test_main_cli_execution(tmp_path: Path) -> None:
         "exact_energy_hartree",
         "absolute_discrepancy_hartree",
         "num_walkers",
+        "steps_per_iter",
         "production_steps",
         "thermalization_steps",
         "total_configurations",
     }
     assert expected_keys.issubset(summary.keys())
     assert summary["num_walkers"] == 50
+    assert summary["steps_per_iter"] == 10
     assert summary["production_steps"] == 20
+    assert summary["thermalization_steps"] == 10
     assert summary["exact_energy_hartree"] == -0.5
+    assert summary["total_configurations"] == 50 * 20
 
 
 @pytest.mark.parametrize(
@@ -75,13 +85,14 @@ def test_main_cli_execution(tmp_path: Path) -> None:
         ("--alpha-init", "-0.5"),
         ("--lr", "0.0"),
         ("--iterations", "0"),
+        ("--steps-per-iter", "0"),
         ("--walkers", "-10"),
         ("--steps", "0"),
         ("--therm", "-1"),
     ],
 )
 def test_main_cli_invalid_arguments(flag: str, value: str) -> None:
-    """Ensure that non-physical or non-positive CLI arguments trigger SystemExit."""
+    """Ensure non-physical or out-of-bound CLI arguments trigger SystemExit via parser."""
     parser = build_parser()
     with pytest.raises(SystemExit):
         args = parser.parse_args([flag, value])

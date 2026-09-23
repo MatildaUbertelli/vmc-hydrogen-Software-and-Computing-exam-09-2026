@@ -5,7 +5,7 @@ import pytest
 from vmc_hydrogen.optimizer import VariationalOptimizer
 
 
-def test_optimizer_invalid_parameters():
+def test_optimizer_invalid_parameters()-> None:
     """Verify that non-positive parameters raise a ValueError."""
     with pytest.raises(ValueError):
         VariationalOptimizer(initial_alpha=-0.1)
@@ -17,7 +17,7 @@ def test_optimizer_invalid_parameters():
         VariationalOptimizer(steps_per_iter=-10)
 
 
-def test_gradient_oracle_at_analytical_minimum():
+def test_gradient_oracle_at_analytical_minimum()-> None:
     """Verify energy and gradient evaluate to exact minimum at alpha = 1.0. """
     opt = VariationalOptimizer(initial_alpha=1.0, seed=42)
 
@@ -31,7 +31,7 @@ def test_gradient_oracle_at_analytical_minimum():
     assert gradient == pytest.approx(0.0, abs=1e-3)
 
 
-def test_optimizer_convergence():
+def test_optimizer_convergence()-> None:
     """Verify optimization trajectory moves towards alpha = 1.0 and E = -0.5 Ha."""
     opt = VariationalOptimizer(
         initial_alpha=0.6,

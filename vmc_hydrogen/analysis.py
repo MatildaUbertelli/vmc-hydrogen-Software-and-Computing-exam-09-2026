@@ -72,8 +72,19 @@ def estimate_energy(
     tuple of (float, float)
         - mean_energy : Sample mean energy expectation value.
         - error : Estimated standard error of the mean taking autocorrelation into account.
+
+    Raises
+    ------
+    ValueError
+        If local_energies is empty or if block_size is non-positive.
     """
     arr = np.asarray(local_energies, dtype=float)
+    if arr.size == 0:
+        raise ValueError("local_energies array must not be empty.")
+
+    if block_size is not None and block_size <= 0:
+        raise ValueError("block_size must be a strictly positive integer.")
+
     mean_val = float(np.mean(arr))
 
     if block_size is None:
