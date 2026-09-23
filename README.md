@@ -94,7 +94,7 @@ To produce an unbiased statistical error on the estimated ground-state energy, t
 
 1. The chronological series of local energy samples $E_L$ of size $N$ is divided into $N_b$ consecutive, non-overlapping blocks of length $B$, such that $N = N_b \cdot B$.
 2. The sample mean of each block is evaluated:
-   $\bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b$
+   $\bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b$.
 3. The standard error of the mean is calculated across block averages:
    $\sigma_{\bar{E}}(B) = \sqrt{\frac{1}{N_b (N_b - 1)} \sum_{k=1}^{N_b} (\bar{E}_k - \langle E_L \rangle)^2}$
 
@@ -132,7 +132,7 @@ pip install -e .
 The package provides an integrated Command-Line Interface (CLI) based on Python's standard `argparse` module to run parameter optimization, production sampling, and automated diagnostic plot generation:
 
 ```bash
-python -m vmc_hydrogen --alpha-init 0.5 --walkers 500 --iterations 30 --steps-per-iter 50 --lr 0.15 --steps 200 --therm 200 --seed 42 --outdir results
+python -m vmc_hydrogen --alpha-init 0.5 --walkers 500 --iterations 30 --steps-per-iter 50 --lr 0.15 --steps 1000 --therm 200 --seed 42 --outdir results
 ```
 
 ### CLI Parameters and Flags
@@ -146,7 +146,7 @@ The application accepts the following command-line flags and parameters via stan
 | `--iterations` | `int` | `30` | Maximum number of gradient descent iterations during variational parameter optimization. |
 | `--steps-per-iter` | `int` | `50` | Number of MCMC sampling steps per walker accumulated during each optimization iteration. Must be $> 0$. |
 | `--walkers` | `int` | `500` | Number of concurrent Metropolis-Hastings random walkers propagating along $r$. |
-| `--steps` | `int` | `200` | Production sampling steps per walker accumulated with the optimal parameter $\alpha^*$.|
+| `--steps` | `int` | `1000` | Production sampling steps per walker accumulated with the optimal parameter $\alpha^*$.|
 | `--therm` | `int` | `200` | Thermalization (burn-in) steps discarded during the final high-statistics production run at $\alpha^*$.|
 | `--seed` | `int` | `42` | Seed for pseudorandom number generation to ensure deterministic reproducibility. |
 | `--outdir` | `Path` | `results/` | Target directory where diagnostic figures (`.png`) and numerical summaries (`.json`) are stored. |
