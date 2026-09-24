@@ -83,30 +83,17 @@ $$\alpha_{k+1} = \alpha_k - \eta_k \frac{\partial \langle E \rangle}{\partial \a
 
 where $\eta_k$ is the learning rate. At each step $k$, the expectation values are evaluated empirically using an ensemble of parallel Metropolis-Hastings random walkers.
 
-### Statistical Error Estimation and Data Blocking
-In Markov Chain Monte Carlo (MCMC) simulations, successive configurations along walker trajectories are temporally correlated. Computing the standard error via naive independent sample statistics:
+### Statistical Error & Data Blocking
 
-$$\sigma_{\text{naive}} = \frac{\sigma}{\sqrt{N}}$$
+Successive MCMC samples are serially correlated, meaning naive error estimation $\sigma / \sqrt{N}$ systematically underestimates the uncertainty. To obtain an unbiased standard error, the simulation applies **Flyvbjerg-Petersen block averaging**:
 
-underestimates the real uncertainty because it omits the integrated autocorrelation time $\tau_{\text{int}}$.
+1. Divide the $N$ chronological samples into $N_b$ non-overlapping blocks of size $B$ ($N = N_b \cdot B$).
+2. Compute each block mean:
+   $$\bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b$$
+3. Evaluate the standard error across block averages:
+   $$\sigma_{\bar{E}}(B) = \sqrt{\frac{1}{N_b(N_b - 1)} \sum_{k=1}^{N_b} (\bar{E}_k - \langle E_L \rangle)^2}$$
 
-To produce an unbiased statistical error on the estimated ground-state energy, the package applies the **Flyvbjerg-Petersen block averaging** technique (data blocking):
-
-- The chronological series of local energy samples $E_L$ of size $N$ is divided into $N_b$ consecutive, non-overlapping blocks of length $B$, such that $N = N_b \cdot B$.
-
-- The sample mean of each block is evaluated:
-
-  $$
-  \bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b
-  $$
-
-- The standard error of the mean is calculated across block averages:
-
-  $$
-  \sigma_{\bar{E}}(B) = \sqrt{\frac{1}{N_b (N_b - 1)} \sum_{k=1}^{N_b} (\bar{E}_k - \langle E_L \rangle)^2}
-  $$
-
-As the block length $B$ surpasses the correlation window ($B \gg 2\tau_{\text{int}}$), consecutive block averages become mutually uncorrelated and $\sigma_{\bar{E}}(B)$ reaches an asymptotic plateau. The value on this plateau represents the true, unbiased standard error of the Monte Carlo simulation.
+When $B \gg 2\tau_{\text{int}}$, the block averages become decorrelated and $\sigma_{\bar{E}}(B)$ reaches a plateau, identifying the genuine statistical uncertainty of the estimated energy.
 
 ---
 
