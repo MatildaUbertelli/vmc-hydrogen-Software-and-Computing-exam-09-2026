@@ -259,9 +259,7 @@ Executing the simulation automatically exports three publication-quality diagnos
   Tracks the convergence histories across optimization iterations for both the variational parameter $\alpha_k \to \alpha^* \approx 1.0$ and the sample energy expectation value $\langle E_L \rangle \to -0.5\text{ Ha}$. Includes visual reference lines for the analytical minimum and illustrates the progressive suppression of the stochastic gradient as the algorithm approaches the stationary ground state.
 
 * **`radial_distribution.png`**:  
-  Validates the spatial exploration of the Markov chain during the final production run. The normalized histogram of accumulated radial walker coordinates $r$ is plotted against the exact theoretical probability density:
-  $$P(r) = 4(\alpha^*)^3 r^2 e^{-2\alpha^* r}$$
-  confirming that the equilibrium distribution has been reached following the `--therm` burn-in phase.
+  Validates the spatial exploration of the Markov chain during the final production run. The normalized histogram of accumulated radial walker coordinates $r$ is plotted against the exact theoretical probability density: $$P(r) = 4(\alpha^*)^3 r^2 e^{-2\alpha^* r}$$
 
 * **`blocking_analysis.png`**:  
   Presents the statistical error $\sigma_{\bar{E}}$ on the energy expectation value as a function of block size $B$ (Flyvbjerg-Petersen rebinning). Displays the initial underestimation due to serial autocorrelation and highlights the asymptotic plateau where block averages become independent identically distributed (i.i.d.) variables, confirming that the reported error bar is statistically robust and uncorrupted by correlation.
