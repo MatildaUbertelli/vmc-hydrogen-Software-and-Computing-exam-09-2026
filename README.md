@@ -85,15 +85,13 @@ where $\eta_k$ is the learning rate. At each step $k$, the expectation values ar
 
 ### Statistical Error & Data Blocking
 
-Successive MCMC samples are serially correlated, meaning naive error estimation $\sigma / \sqrt{N}$ systematically underestimates the uncertainty. To obtain an unbiased standard error, the simulation applies **Flyvbjerg-Petersen block averaging**:
+Because successive MCMC samples are serially correlated, the naive uncertainty $\sigma / \sqrt{N}$ systematically underestimates the true variance. To obtain an unbiased estimate, the local energy series $E_L$ of size $N$ is divided into $N_b$ non-overlapping blocks of size $B$ ($N = N_b \cdot B$). The block means and the corresponding standard error of the mean are given by:
 
-1. Divide the $N$ chronological samples into $N_b$ non-overlapping blocks of size $B$ ($N = N_b \cdot B$).
-2. Compute each block mean:
-   $$\bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad k = 1, \dots, N_b$$
-3. Evaluate the standard error across block averages:
-   $$\sigma_{\bar{E}}(B) = \sqrt{\frac{1}{N_b(N_b - 1)} \sum_{k=1}^{N_b} (\bar{E}_k - \langle E_L \rangle)^2}$$
+$$
+\bar{E}_k = \frac{1}{B} \sum_{i=1}^B E_L^{(k, i)}, \quad \sigma_{\bar{E}}(B) = \sqrt{\frac{1}{N_b(N_b - 1)} \sum_{k=1}^{N_b} (\bar{E}_k - \langle E_L \rangle)^2}
+$$
 
-When $B \gg 2\tau_{\text{int}}$, the block averages become decorrelated and $\sigma_{\bar{E}}(B)$ reaches a plateau, identifying the genuine statistical uncertainty of the estimated energy.
+Once $B \gg 2\tau_{\text{int}}$, the block averages decorrelate and $\sigma_{\bar{E}}(B)$ forms an asymptotic plateau, yielding the genuine statistical error.
 
 ---
 
@@ -153,39 +151,48 @@ The application accepts the following command-line flags and parameters via stan
 In addition to the CLI interface, `vmc_hydrogen` can be imported and executed programmatically as a standard Python package. Below is an updated minimal working example showing how to initialize the trial wave function, configure production and thermalization steps, evaluate local energies, and estimate the statistical error via Flyvbjerg-Petersen data blocking:
 
 ```python
-from vmc_hydrogen.wavefunctions import Hydrogen1sWaveFunction
-from vmc_hydrogen.sampler import MultiWalkerMetropolis
-from vmc_hydrogen.hamiltonian import local_energy
 from vmc_hydrogen.analysis import blocking_analysis, estimate_energy
+from vmc_hydrogen.hamiltonian import local_energy
+from vmc_hydrogen.optimizer import VariationalOptimizer
+from vmc_hydrogen.sampler import MultiWalkerMetropolis
+from vmc_hydrogen.wavefunctions import Hydrogen1sWaveFunction
 
-# 1. Initialize trial wave function (e.g., at the exact ground state alpha = 1.0)
-wf = Hydrogen1sWaveFunction(alpha=1.0)
-
-# 2. Configure the 1D multi-walker radial Metropolis sampler
-sampler = MultiWalkerMetropolis(
-    wavefunction=wf,
+# 1. Variational parameter optimization via stochastic gradient descent
+optimizer = VariationalOptimizer(
+    initial_alpha=0.5,
+    learning_rate=0.15,
     num_walkers=500,
-    step_size=0.5 / wf.alpha,
+    steps_per_iter=50,
     seed=42,
 )
+history = optimizer.optimize(max_iterations=30)
+opt_alpha = history["alpha"][-1]
 
-# 3. Collect radial samples using configurable thermalization (burn-in) and production steps
-#    Corresponding to CLI flags --therm 200 and --steps 200
-radii = sampler.sample(num_steps=200, thermalization=200)
+# 2. Production sampling at the optimal alpha using burn-in and production steps
+wf_opt = Hydrogen1sWaveFunction(alpha=opt_alpha)
+sampler = MultiWalkerMetropolis(
+    wavefunction=wf_opt,
+    num_walkers=500,
+    step_size=0.5 / opt_alpha,
+    seed=43,
+)
 
-# 4. Evaluate local energy values on sampled configurations (atomic units)
-energies = local_energy(radii, alpha=wf.alpha)
+# Collect production configurations
+radii = sampler.sample(num_steps=1000, thermalization=200)
+energies = local_energy(radii, opt_alpha)
 
-# 5. Flyvbjerg-Petersen block averaging analysis
+# 3. Statistical data blocking analysis on production energies
 block_sizes, block_errors = blocking_analysis(energies, min_block_size=10)
 mean_energy, energy_error = estimate_energy(energies)
 
-print(f"Estimated Ground State Energy : {mean_energy:.6f} +/- {energy_error:.6f} Ha")
-print(f"Exact Analytical Energy       : -0.500000 Ha")
-print(f"Discrepancy                   : {abs(mean_energy - (-0.5)):.6f} Ha")
+print(f"Optimal alpha        : {opt_alpha:.4f} (Target = 1.0000)")
+print(f"Estimated Energy <E> : {mean_energy:.6f} +/- {energy_error:.6f} Ha")
+print(f"Exact Target         : -0.500000 Ha")
+print(f"Discrepancy          : {abs(mean_energy - (-0.5)):.6f} Ha")
 ```
-> **Note on Minimal API Usage:**  
-> The snippet above illustrates the core computational workflow: evaluating the expectation value and statistical uncertainty for a fixed trial wave function without invoking the optimization engine or generating visual artifacts (such as diagnostic plots). For full automated parameter optimization and diagnostic figure generation, use the integrated command-line interface (`python -m vmc_hydrogen ...`) or invoke `vmc_hydrogen.optimizer.VariationalOptimizer` directly.
+
+> **Note on Visual Artifacts:** 
+> This API demonstration focuses strictly on numerical computation and does not write figures or summary files to disk. To automatically generate diagnostic plots (`optimization_trajectory.png`, `blocking_analysis.png`, `radial_distribution.png`) and export structured numerical outputs (`simulation_summary.json`), execute the workflow via the command-line interface.
 
 ---
 
