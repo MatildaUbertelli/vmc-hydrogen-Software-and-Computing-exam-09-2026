@@ -104,7 +104,8 @@ class MultiWalkerMetropolis:
     def sample(self, num_steps: int, thermalization: int = 0) -> np.ndarray:
         """Generate configurations from the stationary distribution.
 
-        Performs optional burn-in steps followed by production sampling, aggregating walker coordinates at each step.
+        Performs optional burn-in steps followed by production sampling,
+        aggregating walker coordinates at each step.
 
         Parameters
         ----------
@@ -116,12 +117,21 @@ class MultiWalkerMetropolis:
         Returns
         -------
         np.ndarray
-            One-dimensional array of accumulated radial coordinates of shape (num_steps * num_walkers,).
+            One-dimensional array of accumulated radial coordinates of shape
+            (num_steps * num_walkers,).
+
+        Raises
+        ------
+        ValueError
+            If `num_steps` is not strictly positive or `thermalization` is negative.
         """
         if num_steps <= 0:
             raise ValueError("num_steps must be a strictly positive integer.")
         if thermalization < 0:
             raise ValueError("thermalization must be a non-negative integer.")
+
+        if thermalization > 0:
+            self.thermalize(steps=thermalization)
 
         history = np.empty((num_steps, self.num_walkers), dtype=float)
         for i in range(num_steps):
